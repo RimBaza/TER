@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from sklearn.cluster import DBSCAN
+
 
 data = pd.read_csv('GazeRV_ON26.csv')
 data['Time'] = data['Time'] / 1000
@@ -161,4 +163,38 @@ ax4.set_title('Scanpath Metrics per Participant')
 
 
 plt.tight_layout()
+plt.show()
+
+
+# Supposez que 'fixations' est un DataFrame contenant les centres X et Y de toutes les fixations
+# Si 'fixations' n'existe pas déjà, vous devrez créer ce DataFrame à partir de 'fixation_df' pour chaque participant.
+# Voici comment vous pourriez le faire (en supposant que les données sont déjà préparées dans le code initial) :
+
+# Rassembler toutes les fixations dans un seul DataFrame (dépend de la structure de votre programme)
+all_fixations = pd.concat([group[['ScreenX', 'ScreenY']] for _, group in data_grouped])
+
+# Application de DBSCAN
+# 'eps' est la distance maximale entre deux échantillons pour qu'ils soient considérés comme dans le même voisinage
+# 'min_samples' est le nombre de points minimum dans un voisinage pour former un cluster
+dbscan = DBSCAN(eps=0.05, min_samples=20)  # Ces paramètres doivent être ajustés en fonction de vos données spécifiques
+clusters = dbscan.fit_predict(all_fixations)
+
+# Ajouter les étiquettes de cluster au DataFrame
+all_fixations['Cluster'] = clusters
+
+filtered_data = all_fixations[all_fixations['Cluster'] != -1]
+fixation_statistics = filtered_data.groupby('Cluster').agg(
+    Avg_ScreenX=('ScreenX', 'mean'),
+    Avg_ScreenY=('ScreenY', 'mean'),
+    Duration=('Time', lambda x: x.max() - x.min()),
+    Count=('Cluster', 'size')
+).reset_index()
+print(fixation_statistics)
+# Visualisation
+plt.figure(figsize=(10, 6))
+plt.scatter(all_fixations['ScreenX'], all_fixations['ScreenY'], c=all_fixations['Cluster'], cmap='viridis', marker='o')
+plt.title('DBSCAN Clustering of Fixation Points')
+plt.xlabel('Screen X')
+plt.ylabel('Screen Y')
+plt.colorbar(label='Cluster ID')
 plt.show()
